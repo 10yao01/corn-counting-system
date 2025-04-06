@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片上传与识别</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>玉米植株计数系统</h1>
+        <!-- index.html 修改部分 -->
+        <form method="POST" enctype="multipart/form-data" class="upload-form">
+            <input type="file" name="file" accept="image/jpeg, image/png" required id="file-input">
+            <input type="submit" value="上传图片" class="submit-btn">
+        </form>
+
+        {% if session.uploaded_file_preview %}
+        <div class="preview-container">
+            <h3>已上传图片预览：{{ session.uploaded_file_preview }}</h3>
+            <img class="preview-image" src="{{ url_for('static', filename='files/' + session.uploaded_file) }}"
+                alt="上传的图片" onerror="this.style.display='none'">
+        </div>
+
+        <form action="/process" method="POST" class="process-form">
+            <button type="submit" class="button">开始识别</button>
+        </form>
+        {% endif %}
+    </div>
+    <script>
+        // 新增 JavaScript 代码
+        document.addEventListener('DOMContentLoaded', function () {
+            const fileInput = document.getElementById('file-input')
+            const customBtn = document.createElement('button')
+
+            // 创建自定义按钮
+            customBtn.className = 'custom-file-btn'
+            customBtn.textContent = '选择文件'
+            fileInput.parentNode.insertBefore(customBtn, fileInput.nextSibling)
+
+            // 点击自定义按钮触发文件选择
+            customBtn.addEventListener('click', function (e) {
+                e.preventDefault()
+                fileInput.click()
+            })
+
+            // 显示选中文件名
+            fileInput.addEventListener('change', function () {
+                if (this.files.length > 0) {
+                    customBtn.textContent = this.files[0].name
+                }
+            })
+        });
+    </script>
+</body>
+
+</html>

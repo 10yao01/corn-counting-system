@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>识别结果</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>识别结果</h1>
+        <div class="preview-container">
+            <img class="preview-image" src="{{ image_url }}" alt="处理后的图片" onerror="this.style.display='none'">
+        </div>
+        <p>共计{{cnt}} 个玉米植株</p>
+
+        <div class="button-group">
+            <button onclick="window.location.href='/'" class="button">
+                返回首页
+            </button>
+            <button id="downloadBtn" class="button">
+                下载结果
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', async () => {
+            try {
+                const imageUrl = "{{ image_url }}"
+                const response = await fetch(imageUrl)
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`)
+                }
+
+                const blob = await response.blob()
+                const filename = prompt('请输入保存文件名',
+                    `result_Seed_${"{{ image_url }}".split('_')[3]}`)
+
+                if (filename) {
+                    const link = document.createElement('a')
+                    link.href = URL.createObjectURL(blob)
+                    link.download = filename
+                    document.body.appendChild(link)
+                    link.click()
+                    document.body.removeChild(link)
+                    URL.revokeObjectURL(link.href)
+                }
+            } catch (error) {
+                console.error('下载失败:', error)
+                alert('文件下载失败，请稍后重试')
+            }
+        });
+    </script>
+</body>
+
+</html>

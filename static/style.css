@@ -1,0 +1,115 @@
+/* style.css 新增样式 */
+/* 自定义文件选择按钮 */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    width: 90%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    text-align: center;
+}
+
+h1 {
+    text-align: center;
+    color: #4a90e2;
+}
+
+
+#file-input {
+    display: none; /* 隐藏原生输入框 */
+}
+
+.custom-file-btn {
+    background-color: #4a90e2;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-right: 10px;
+}
+
+.custom-file-btn:hover {
+    background-color: #3672a8;
+}
+
+/* 普通按钮样式 */
+.submit-btn {
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.submit-btn:hover {
+    background-color: #888888;
+}
+
+.button {
+    background-color: #4a90e2;
+    color: #ffffff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.preview-container {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.preview-image {
+    max-width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+    .button-group {
+        gap: 12px;
+    }
+    
+    .button {
+        padding: 10px 18px;
+        font-size: 14px;
+    }
+}
+
+/* 按钮组样式 */
+.button-group {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 25px;
+    flex-wrap: wrap;
+}
+
+/* 文件名输入框样式 */
+#filenameInput {
+    margin: 15px 0;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 250px;
+}
