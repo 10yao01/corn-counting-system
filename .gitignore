@@ -178,3 +178,4 @@ cython_debug/
 *.pt
 **/weights
 .history/
+*.jpg
