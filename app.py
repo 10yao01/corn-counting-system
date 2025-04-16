@@ -7,8 +7,8 @@ app = Flask(__name__)
 app.secret_key = 'ypf1101'  # 设置一个安全的密钥
 
 # 配置上传路径
-UPLOAD_FOLDER = 'static/files'
-RESULT_FOLDER = 'static/images'
+UPLOAD_FOLDER = '/workspace/counting_system/static/files'
+RESULT_FOLDER = '/workspace/counting_system/static/images'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RESULT_FOLDER'] = RESULT_FOLDER
 
@@ -63,22 +63,29 @@ def process():
     # 获取原始文件路径
     src_path = os.path.join(app.config['UPLOAD_FOLDER'], session['uploaded_file'])
     
+    print(src_path) # static/files/b758a20a6d3740dda01556fa7030129d_Seed_0010.jpg
+
+    # 导入detect模块中的detect_image函数
+    from model.detect import detect_image
+    
+    # 调用detect_image函数处理图像，获取植株计数
+    count = detect_image(
+        app.config['UPLOAD_FOLDER'],
+        app.config['RESULT_FOLDER'], 
+        session['uploaded_file']
+    )
+    
     # 生成处理后文件名
     result_filename = 'processed_' + session['uploaded_file']
-    dest_path = os.path.join(app.config['RESULT_FOLDER'], result_filename)
-    
-    # 复制文件模拟处理过程（实际应替换为真实处理逻辑）
-    shutil.copy(src_path, dest_path)
     
     # 保存结果文件名到session
     session['processed_file'] = result_filename
     
-    # 这里可以添加实际的玉米植株计数逻辑
-    # 现在我们只是模拟一个计数结果
-    session['plant_count'] = 42  # 使用一个固定的植株数量进行模拟
+    # 保存植株计数结果到session
+    session['plant_count'] = count
     
     # 添加成功处理的提示信息
-    flash('图像处理成功！已识别玉米植株', 'success')
+    flash(f'图像处理成功！已识别{count}个玉米植株', 'success')
     
     return redirect(url_for('result'))
 
