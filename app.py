@@ -28,11 +28,13 @@ def index():
     if request.method == 'POST':
         # 检查是否有文件上传
         if 'file' not in request.files:
+            flash('未检测到文件', 'error')
             return redirect(request.url)
         
         file = request.files['file']
         
         if file.filename == '':
+            flash('未选择文件', 'error')
             return redirect(request.url)
         
         if file and allowed_file(file.filename):
@@ -47,7 +49,7 @@ def index():
                 session['uploaded_file_preview'] = session['uploaded_file'][33:]
             return redirect(url_for('index'))
         else:
-            flash('只允许上传JPG和PNG格式的图片文件')
+            flash('只允许上传JPG和PNG格式的图片文件', 'error')
             return redirect(request.url)
     
     return render_template('index.html')
@@ -55,6 +57,7 @@ def index():
 @app.route('/process', methods=['POST'])
 def process():
     if 'uploaded_file' not in session:
+        flash('请先上传图片', 'error')
         return redirect(url_for('index'))
     
     # 获取原始文件路径
@@ -69,17 +72,27 @@ def process():
     
     # 保存结果文件名到session
     session['processed_file'] = result_filename
+    
+    # 这里可以添加实际的玉米植株计数逻辑
+    # 现在我们只是模拟一个计数结果
+    session['plant_count'] = 42  # 使用一个固定的植株数量进行模拟
+    
+    # 添加成功处理的提示信息
+    flash('图像处理成功！已识别玉米植株', 'success')
+    
     return redirect(url_for('result'))
 
 @app.route('/result')
 def result():
     if 'processed_file' not in session:
+        flash('请先上传并处理图片', 'error')
         return redirect(url_for('index'))
     
     image_url = url_for('static', filename=f'images/{session["processed_file"]}')
-    return render_template('result.html', image_url=image_url)
-
-
+    # 从session中获取植株计数结果
+    plant_count = session.get('plant_count', 0)
+    
+    return render_template('result.html', image_url=image_url, cnt=plant_count)
 
 if __name__ == '__main__':
     app.run(debug=True)

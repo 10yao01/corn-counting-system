@@ -4,52 +4,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图片上传与识别</title>
+    <title>玉米植株计数系统</title>
     <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 
 <body>
     <div class="container">
-        <h1>玉米植株计数系统</h1>
-        <!-- index.html 修改部分 -->
-        <form method="POST" enctype="multipart/form-data" class="upload-form">
-            <input type="file" name="file" accept="image/jpeg, image/png" required id="file-input">
-            <input type="submit" value="上传图片" class="submit-btn">
-        </form>
+        <header>
+            <h1><i class="fas fa-seedling"></i> 玉米植株计数系统</h1>
+            <p class="subtitle">上传玉米田图片进行自动计数分析</p>
+        </header>
 
-        {% if session.uploaded_file_preview %}
-        <div class="preview-container">
-            <h3>已上传图片预览：{{ session.uploaded_file_preview }}</h3>
-            <img class="preview-image" src="{{ url_for('static', filename='files/' + session.uploaded_file) }}"
-                alt="上传的图片" onerror="this.style.display='none'">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash-message {{ category }}">
+                {% if category == 'error' %}
+                <i class="fas fa-exclamation-circle"></i>
+                {% elif category == 'success' %}
+                <i class="fas fa-check-circle"></i>
+                {% else %}
+                <i class="fas fa-info-circle"></i>
+                {% endif %}
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="main-content">
+            <form method="POST" enctype="multipart/form-data" class="upload-form">
+                <div class="file-upload-container">
+                    <input type="file" name="file" accept="image/jpeg, image/png" required id="file-input">
+                    <label for="file-input" class="custom-file-btn">
+                        <i class="fas fa-cloud-upload-alt"></i> 选择图片
+                    </label>
+                    <span id="file-name" class="file-name">未选择文件</span>
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    <i class="fas fa-upload"></i> 上传图片
+                </button>
+            </form>
+
+            {% if session.uploaded_file_preview %}
+            <div class="preview-container">
+                <h3><i class="fas fa-image"></i> 已上传图片：{{ session.uploaded_file_preview }}</h3>
+                <div class="image-container">
+                    <img class="preview-image" src="{{ url_for('static', filename='files/' + session.uploaded_file) }}"
+                        alt="上传的图片" onerror="this.style.display='none'">
+                </div>
+            </div>
+
+            <form action="/process" method="POST" class="process-form">
+                <button type="submit" class="button">
+                    <i class="fas fa-search"></i> 开始识别
+                </button>
+            </form>
+            {% else %}
+            <div class="upload-instructions">
+                <p class="info-text"><i class="fas fa-info-circle"></i> 请上传玉米田图片进行植株计数</p>
+                <div class="supported-formats">
+                    <span>支持的格式：</span>
+                    <span class="format-badge">JPG</span>
+                    <span class="format-badge">PNG</span>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
-        <form action="/process" method="POST" class="process-form">
-            <button type="submit" class="button">开始识别</button>
-        </form>
-        {% endif %}
+        <footer>
+            <p class="footer-text">玉米植株计数系统 | 基于目标检测算法</p>
+        </footer>
     </div>
+
     <script>
-        // 新增 JavaScript 代码
         document.addEventListener('DOMContentLoaded', function () {
             const fileInput = document.getElementById('file-input')
-            const customBtn = document.createElement('button')
+            const fileName = document.getElementById('file-name')
 
-            // 创建自定义按钮
-            customBtn.className = 'custom-file-btn'
-            customBtn.textContent = '选择文件'
-            fileInput.parentNode.insertBefore(customBtn, fileInput.nextSibling)
-
-            // 点击自定义按钮触发文件选择
-            customBtn.addEventListener('click', function (e) {
-                e.preventDefault()
-                fileInput.click()
-            })
-
-            // 显示选中文件名
             fileInput.addEventListener('change', function () {
                 if (this.files.length > 0) {
-                    customBtn.textContent = this.files[0].name
+                    fileName.textContent = this.files[0].name
+                    fileName.classList.add('has-file')
+                } else {
+                    fileName.textContent = '未选择文件'
+                    fileName.classList.remove('has-file')
                 }
             })
         });

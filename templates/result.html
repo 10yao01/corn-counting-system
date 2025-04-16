@@ -1,29 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>识别结果</title>
+    <title>识别结果 - 玉米植株计数系统</title>
     <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 
 <body>
     <div class="container">
-        <h1>识别结果</h1>
-        <div class="preview-container">
-            <img class="preview-image" src="{{ image_url }}" alt="处理后的图片" onerror="this.style.display='none'">
-        </div>
-        <p>共计{{cnt}} 个玉米植株</p>
+        <header>
+            <h1><i class="fas fa-chart-bar"></i> 识别结果</h1>
+            <p class="subtitle">智能分析完成</p>
+        </header>
 
-        <div class="button-group">
-            <button onclick="window.location.href='/'" class="button">
-                返回首页
-            </button>
-            <button id="downloadBtn" class="button">
-                下载结果
-            </button>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash-message {{ category }}">
+                {% if category == 'error' %}
+                <i class="fas fa-exclamation-circle"></i>
+                {% elif category == 'success' %}
+                <i class="fas fa-check-circle"></i>
+                {% else %}
+                <i class="fas fa-info-circle"></i>
+                {% endif %}
+                {{ message }}
+            </div>
+            {% endfor %}
         </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="main-content">
+            <div class="result-card">
+                <div class="preview-container">
+                    <h3><i class="fas fa-image"></i> 处理后的图像</h3>
+                    <div class="image-container">
+                        <img class="preview-image" src="{{ image_url }}" alt="处理后的图片"
+                            onerror="this.style.display='none'">
+                    </div>
+                </div>
+
+                <div class="result-stats">
+                    <div class="stat-box">
+                        <i class="fas fa-seedling"></i>
+                        <div class="stat-content">
+                            <span class="stat-value">{{cnt}}</span>
+                            <span class="stat-label">玉米植株</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button onclick="window.location.href='/'" class="button secondary-button">
+                    <i class="fas fa-home"></i> 返回首页
+                </button>
+                <button id="downloadBtn" class="button">
+                    <i class="fas fa-download"></i> 下载结果
+                </button>
+            </div>
+        </div>
+
+        <footer>
+            <p class="footer-text">玉米植株计数系统 | 基于目标检测算法</p>
+        </footer>
     </div>
 
     <script>
