@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from PIL import Image
 
 app = Flask(__name__)
 app.secret_key = 'ypf1101'  # 设置一个安全的密钥
@@ -23,6 +24,37 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def resize_image_if_needed(image_path, max_size=2048):
+    """
+    检查图像尺寸，如果超过最大尺寸，则调整到最大尺寸
+    
+    Args:
+        image_path: 图像文件路径
+        max_size: 最大尺寸（宽和高）
+    
+    Returns:
+        bool: 是否调整了图像尺寸
+    """
+    try:
+        img = Image.open(image_path)
+        width, height = img.size
+        
+        # 检查图像尺寸是否超过最大尺寸
+        if width > max_size or height > max_size:
+            # 计算缩放比例
+            ratio = min(max_size / width, max_size / height)
+            new_width = int(width * ratio)
+            new_height = int(height * ratio)
+            
+            # 调整图像尺寸
+            img = img.resize((new_width, new_height), Image.LANCZOS)
+            img.save(image_path)
+            return True
+        return False
+    except Exception as e:
+        print(f"调整图像尺寸时出错: {e}")
+        return False
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -41,7 +73,13 @@ def index():
             # 生成唯一文件名
             unique_id = uuid.uuid4().hex
             filename = unique_id + '_' + file.filename
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            # 检查图像尺寸并在需要时调整
+            resized = resize_image_if_needed(file_path, max_size=2048)
+            if resized:
+                flash('图像尺寸过大，已自动调整为适合处理的尺寸', 'info')
             
             # 将文件名存入session
             session['uploaded_file'] = filename
