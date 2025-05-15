@@ -282,7 +282,7 @@ def main(opt):
     run(**vars(opt))
 
 
-def detect_image(upload_folder, result_folder, filename):
+def detect_image(upload_folder, result_folder, filename, model_weights):
     """
     Process an uploaded image with YOLOv5 model and save the detection results.
     
@@ -308,7 +308,7 @@ def detect_image(upload_folder, result_folder, filename):
     opt.source = src_path
     opt.project = result_folder  # Set output directory
     opt.name = ''           # No subfolder
-    opt.weights = '/workspace/counting_system/model/yolov5_best.pt'
+    opt.weights = model_weights
     
 
     

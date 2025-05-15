@@ -3,15 +3,39 @@ import uuid
 import shutil
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from PIL import Image
+import sys
 
-app = Flask(__name__)
-app.secret_key = 'ypf1101'  # 设置一个安全的密钥
+def resource_path(relative_path):
+    """获取资源的绝对路径，适用于开发环境和PyInstaller打包后的环境"""
+    try:
+        # PyInstaller创建临时文件夹，定义_MEIPASS属性
+        base_path = sys._MEIPASS
+    except Exception:
+        # 处于正常的Python环境
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
 
-# 配置上传路径
-UPLOAD_FOLDER = '/workspace/counting_system/static/files'
-RESULT_FOLDER = '/workspace/counting_system/static/images'
+# 配置Flask应用
+app = Flask(__name__, 
+            template_folder=resource_path('templates'),
+            static_folder=resource_path('static'))
+
+# 修改上传和结果文件夹路径
+base_dir = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
+UPLOAD_FOLDER = os.path.join(base_dir, 'static', 'files')
+RESULT_FOLDER = os.path.join(base_dir, 'static', 'images')
+MODEL_WEIGHTS = os.path.join(base_dir, 'model', 'yolov5_best.pt')
+
+# 确保目录存在
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(RESULT_FOLDER, exist_ok=True)
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['RESULT_FOLDER'] = RESULT_FOLDER
+app.config['MODEL_WEIGHTS'] = MODEL_WEIGHTS
+app.secret_key = 'ypf1101'  # 设置一个安全的密钥
+
 
 # 确保目录存在
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -37,7 +61,10 @@ def resize_image_if_needed(image_path, max_size=2048):
     """
     try:
         img = Image.open(image_path)
+        original_mode = img.mode
         width, height = img.size
+        resized = False
+        format_converted = False
         
         # 检查图像尺寸是否超过最大尺寸
         if width > max_size or height > max_size:
@@ -48,6 +75,28 @@ def resize_image_if_needed(image_path, max_size=2048):
             
             # 调整图像尺寸
             img = img.resize((new_width, new_height), Image.LANCZOS)
+            resized = True
+        
+        # 处理图片格式问题
+        file_ext = os.path.splitext(image_path)[1].lower()
+        
+        # 如果是PNG格式且有透明通道
+        if img.mode == 'RGBA':
+            # 要保存为JPG或需要调整大小，需要转换为RGB
+            if file_ext == '.jpg' or file_ext == '.jpeg' or resized:
+                # 创建一个白色背景
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                # 将原图与白色背景合成
+                background.paste(img, mask=img.split()[3])  # 使用alpha通道作为蒙版
+                img = background
+                format_converted = True
+        # 其他格式转换为RGB（例如P模式等）
+        elif img.mode != 'RGB' and (file_ext == '.jpg' or file_ext == '.jpeg' or resized):
+            img = img.convert('RGB')
+            format_converted = True
+        
+        # 如果图片被调整大小或格式被转换，保存图片
+        if resized or format_converted:
             img.save(image_path)
             return True
         return False
@@ -101,7 +150,7 @@ def process():
     # 获取原始文件路径
     src_path = os.path.join(app.config['UPLOAD_FOLDER'], session['uploaded_file'])
     
-    print(src_path) # static/files/b758a20a6d3740dda01556fa7030129d_Seed_0010.jpg
+    # print(src_path) # static/files/b758a20a6d3740dda01556fa7030129d_Seed_0010.jpg
 
     # 导入detect模块中的detect_image函数
     from model.detect import detect_image
@@ -110,7 +159,8 @@ def process():
     count = detect_image(
         app.config['UPLOAD_FOLDER'],
         app.config['RESULT_FOLDER'], 
-        session['uploaded_file']
+        session['uploaded_file'],
+        app.config['MODEL_WEIGHTS']
     )
     
     # 生成处理后文件名
