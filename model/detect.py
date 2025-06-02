@@ -42,7 +42,13 @@ FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
-ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
+
+# 修复相对路径问题
+try:
+    ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
+except ValueError:
+    # 如果在不同驱动器上，则使用绝对路径
+    ROOT = Path(os.path.abspath(ROOT))
 
 from ultralytics.utils.plotting import Annotator, colors, save_one_box
 
@@ -165,7 +171,22 @@ def run(
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
-            annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+            
+            # 根据图片尺寸动态调整线条粗细和字体大小
+            img_area = im0.shape[0] * im0.shape[1]  # 图片面积
+            # 基础线条粗细为3，根据图片面积按比例调整
+            if img_area > 2048*2048:  # 大于2M像素（例如1600x1250）
+                dynamic_line_thickness = max(10, int(line_thickness * 5))
+                dynamic_font_size = max(24, int(16 * 2))  # 增大字体
+            elif img_area > 1024*1024:  # 大于2M像素（例如1600x1250）
+                dynamic_line_thickness = max(6, int(line_thickness * 2.5))
+                dynamic_font_size = max(24, int(16 * 1.25))  # 增大字体
+            else:
+                dynamic_line_thickness = line_thickness
+                dynamic_font_size = 16  # 默认字体大小
+            
+            # 创建带有动态参数的Annotator
+            annotator = Annotator(im0, line_width=dynamic_line_thickness, font_size=dynamic_font_size, example=str(names))
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
@@ -292,47 +313,65 @@ def detect_image(upload_folder, result_folder, filename, model_weights):
         filename: Name of the image file
     
     Returns:
-        count: Number of detected objects (plants)
-        classes_count: Dictionary with counts of each detected class
+        tuple: (count, error_message) - count为检测到的对象数量，error_message为错误信息（成功时为None）
     """
-    # 图片所在路径
-    src_path = os.path.join(upload_folder, filename)
-    # 结果保存路径
-    result_filename = 'processed_' + filename
-    dest_path = os.path.join(result_folder, result_filename)
-
-    # 这里result_folder路径其实改变了
-    # 没有CSV文件
-
-    opt = parse_opt()
-    opt.source = src_path
-    opt.project = result_folder  # Set output directory
-    opt.name = ''           # No subfolder
-    opt.weights = model_weights
-    
-
-    
-    # Run detection
-    save_dir = run(**vars(opt))
-    
-    # Get prediction counts from results
-    count = 0
-
-    # Use the predictions.csv file to get counts
-    csv_path = Path(save_dir) / 'predictions.csv'
-    if csv_path.exists():
-        with open(csv_path, mode='r') as f:
-            # 计算行数
-            count = sum(1 for _ in f)
-    os.remove(csv_path)
-    
-    # Rename the output file to match the expected destination path
-    output_file = Path(save_dir) / filename
-    if output_file.exists():
+    try:
+        # 图片所在路径
+        src_path = os.path.join(upload_folder, filename)
+        # 结果保存路径
+        result_filename = 'processed_' + filename
         dest_path = os.path.join(result_folder, result_filename)
-        shutil.move(output_file, dest_path)
-    os.removedirs(save_dir)
-    return count
+
+        opt = parse_opt()
+        opt.source = src_path
+        opt.project = result_folder  # Set output directory
+        opt.name = ''           # No subfolder
+        opt.weights = model_weights
+        
+        # Run detection
+        save_dir = run(**vars(opt))
+        
+        # Get prediction counts from results
+        count = 0
+
+        # Use the predictions.csv file to get counts
+        csv_path = Path(save_dir) / 'predictions.csv'
+        if csv_path.exists():
+            with open(csv_path, mode='r') as f:
+                # 计算行数
+                count = sum(1 for _ in f)
+            # Only remove the file if it exists
+            os.remove(csv_path)
+        
+        # Rename the output file to match the expected destination path
+        output_file = Path(save_dir) / filename
+        if output_file.exists():
+            dest_path = os.path.join(result_folder, result_filename)
+            shutil.move(output_file, dest_path)
+        
+        # Check if directory exists before trying to remove it
+        if os.path.exists(save_dir) and os.path.isdir(save_dir):
+            try:
+                os.removedirs(save_dir)
+            except OSError:
+                # Directory not empty, which is fine
+                pass
+                
+        return count, None
+        
+    except RuntimeError as e:
+        # 处理CUDA out of memory错误
+        error_msg = str(e)
+        if "out of memory" in error_msg.lower() or "cuda" in error_msg.lower():
+            # 清理GPU内存
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            return 0, "CUDA内存不足，请尝试使用更小的图片或重启程序"
+        else:
+            return 0, f"运行时错误: {error_msg}"
+    except Exception as e:
+        # 处理其他异常
+        return 0, f"处理图片时发生错误: {str(e)}"
 
 
 if __name__ == '__main__':

@@ -97,6 +97,9 @@ pycosat @ file:///croot/pycosat_1666805502580/work
 pycparser @ file:///tmp/build/80754af9/pycparser_1636541352034/work
 pycryptodome==3.21.0
 Pygments==2.19.1
+PyQt5==5.15.10
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.13.0
 pyOpenSSL @ file:///croot/pyopenssl_1677607685877/work
 pyparsing==3.2.1
 PySocks @ file:///home/builder/ci_310/pysocks_1640793678128/work
