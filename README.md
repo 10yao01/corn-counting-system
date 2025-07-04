@@ -31,6 +31,8 @@ python app.py
 python run.py
 ```
 
+QT版本支持选中图片的部分区域完成图片的裁剪
+
 ### 打包
 
 ```bash
