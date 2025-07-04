@@ -175,12 +175,12 @@ def run(
             # 根据图片尺寸动态调整线条粗细和字体大小
             img_area = im0.shape[0] * im0.shape[1]  # 图片面积
             # 基础线条粗细为3，根据图片面积按比例调整
-            if img_area > 2048*2048:  # 大于2M像素（例如1600x1250）
+            if img_area > 4096*4096:  # 大于2M像素（例如1600x1250）
                 dynamic_line_thickness = max(10, int(line_thickness * 5))
                 dynamic_font_size = max(24, int(16 * 2))  # 增大字体
-            elif img_area > 1024*1024:  # 大于2M像素（例如1600x1250）
-                dynamic_line_thickness = max(6, int(line_thickness * 2.5))
-                dynamic_font_size = max(24, int(16 * 1.25))  # 增大字体
+            elif img_area > 2048*2048:  # 大于2M像素（例如1600x1250）
+                dynamic_line_thickness = max(10, int(line_thickness * 5))
+                dynamic_font_size = max(24, int(16 * 1.5))  # 增大字体
             else:
                 dynamic_line_thickness = line_thickness
                 dynamic_font_size = 16  # 默认字体大小

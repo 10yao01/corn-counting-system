@@ -50,14 +50,52 @@ class ImageCropDialog(QDialog):
         super().__init__(parent)
         self.image_path = image_path
         self.crop_rect = None
+        
+        # 获取图片的原始尺寸
+        self.original_image_size = self.get_image_size(image_path)
+        if not self.original_image_size:
+            QMessageBox.critical(self, "错误", "无法读取图片尺寸")
+            self.reject()
+            return
+            
         self.init_ui()
+        
+    def get_image_size(self, image_path):
+        """获取图片的原始尺寸"""
+        try:
+            with Image.open(image_path) as img:
+                return img.size  # (width, height)
+        except Exception as e:
+            print(f"获取图片尺寸失败: {e}")
+            return None
         
     def init_ui(self):
         self.setWindowTitle('图片裁剪')
         self.setModal(True)
-        self.resize(900, 700)
+        
+        # 设置窗口可以调整大小，并设置最小尺寸
+        self.setMinimumSize(800, 600)
+        self.resize(1200, 900)  # 增大默认窗口大小
+        
+        # 允许窗口最大化
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         
         layout = QVBoxLayout(self)
+        
+        # 图片信息显示区域
+        info_group = QWidget()
+        info_group.setStyleSheet("QWidget { border: 1px solid #4CAF50; border-radius: 5px; padding: 10px; background-color: #f0f8f0; }")
+        info_layout = QVBoxLayout(info_group)
+        
+        info_title = QLabel('图片信息')
+        info_title.setFont(QFont('Arial', 12, QFont.Bold))
+        info_layout.addWidget(info_title)
+        
+        self.image_info_label = QLabel(f'原始尺寸: {self.original_image_size[0]} x {self.original_image_size[1]} 像素')
+        self.image_info_label.setFont(QFont('Arial', 10))
+        info_layout.addWidget(self.image_info_label)
+        
+        layout.addWidget(info_group)
         
         # 裁剪尺寸设置区域
         size_group = QWidget()
@@ -76,8 +114,8 @@ class ImageCropDialog(QDialog):
         width_layout = QHBoxLayout()
         width_layout.addWidget(QLabel('宽度:'))
         self.width_spinbox = QSpinBox()
-        self.width_spinbox.setRange(100, 8000)
-        self.width_spinbox.setValue(2048)
+        self.width_spinbox.setRange(100, self.original_image_size[0])  # 限制为图片原始宽度
+        self.width_spinbox.setValue(min(2048, self.original_image_size[0]))
         self.width_spinbox.setSuffix(' px')
         self.width_spinbox.valueChanged.connect(self.on_size_changed)
         width_layout.addWidget(self.width_spinbox)
@@ -87,8 +125,8 @@ class ImageCropDialog(QDialog):
         height_layout = QHBoxLayout()
         height_layout.addWidget(QLabel('高度:'))
         self.height_spinbox = QSpinBox()
-        self.height_spinbox.setRange(100, 8000)
-        self.height_spinbox.setValue(2048)
+        self.height_spinbox.setRange(100, self.original_image_size[1])  # 限制为图片原始高度
+        self.height_spinbox.setValue(min(2048, self.original_image_size[1]))
         self.height_spinbox.setSuffix(' px')
         self.height_spinbox.valueChanged.connect(self.on_size_changed)
         height_layout.addWidget(self.height_spinbox)
@@ -104,7 +142,19 @@ class ImageCropDialog(QDialog):
         quick_size_layout = QHBoxLayout()
         quick_size_layout.addWidget(QLabel('快速设置:'))
         
-        for size_name, size_value in [('1024x1024', 1024), ('2048x2048', 2048), ('4096x4096', 4096)]:
+        # 根据图片尺寸动态调整快速设置选项
+        quick_sizes = []
+        max_dimension = max(self.original_image_size)
+        
+        for size_value in [1024, 2048, 4096]:
+            if size_value <= max_dimension:
+                quick_sizes.append((f'{size_value}x{size_value}', size_value))
+        
+        # 添加适应图片尺寸的选项 - 使用图片的实际长宽
+        if self.original_image_size[0] != self.original_image_size[1] or max_dimension not in [1024, 2048, 4096]:
+            quick_sizes.append((f'最大尺寸({self.original_image_size[0]}x{self.original_image_size[1]})', max_dimension))
+        
+        for size_name, size_value in quick_sizes:
             btn = QPushButton(size_name)
             btn.clicked.connect(lambda checked, s=size_value: self.set_quick_size(s))
             quick_size_layout.addWidget(btn)
@@ -114,12 +164,15 @@ class ImageCropDialog(QDialog):
         layout.addWidget(size_group)
         
         # 说明标签
-        info_label = QLabel('请在图片上点击并拖拽选择要裁剪的区域')
+        info_label = QLabel('操作说明：\n1、 左键点击拖拽选择裁剪区域  2、+/-键或者滚轮缩放图片\n•3、右键或Ctrl+左键拖拽移动视图  4、空格键恢复适应窗口')
         info_label.setAlignment(Qt.AlignCenter)
+        info_label.setStyleSheet("QLabel { color: #555; font-size: 15px; padding: 8px; font-weight: bold; }")
         layout.addWidget(info_label)
         
-        # 创建图形视图
+        # 创建图形视图 - 设置为可扩展
         self.graphics_view = ImageCropView(self.image_path)
+        self.graphics_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.graphics_view.setMinimumSize(400, 300)  # 设置最小尺寸
         self.graphics_view.set_crop_size(self.width_spinbox.value(), self.height_spinbox.value())
         layout.addWidget(self.graphics_view)
         
@@ -137,23 +190,55 @@ class ImageCropDialog(QDialog):
         layout.addLayout(button_layout)
         
         # 保存纵横比
-        self.aspect_ratio = 1.0
-        
+        self.aspect_ratio = self.width_spinbox.value() / self.height_spinbox.value()
+    
+    def resizeEvent(self, event):
+        """窗口大小改变时重新适应图片显示"""
+        super().resizeEvent(event)
+        if hasattr(self, 'graphics_view'):
+            # 当窗口大小改变时，重新适应图片到视图
+            self.graphics_view.fitInView(self.graphics_view.image_item, Qt.KeepAspectRatio)
+    
     def on_size_changed(self):
         """当尺寸改变时更新裁剪视图"""
+        sender = self.sender()
+        
+        # 检查输入的尺寸是否超过图片原始尺寸
+        current_width = self.width_spinbox.value()
+        current_height = self.height_spinbox.value()
+        
+        size_adjusted = False
+        warning_message = ""
+        
+        if current_width > self.original_image_size[0]:
+            self.width_spinbox.blockSignals(True)
+            self.width_spinbox.setValue(self.original_image_size[0])
+            self.width_spinbox.blockSignals(False)
+            size_adjusted = True
+            warning_message += f"宽度已限制为图片原始宽度: {self.original_image_size[0]}px\n"
+            
+        if current_height > self.original_image_size[1]:
+            self.height_spinbox.blockSignals(True)
+            self.height_spinbox.setValue(self.original_image_size[1])
+            self.height_spinbox.blockSignals(False)
+            size_adjusted = True
+            warning_message += f"高度已限制为图片原始高度: {self.original_image_size[1]}px"
+        
+        if size_adjusted:
+            QMessageBox.information(self, "尺寸调整", warning_message.strip())
+        
         if self.keep_aspect_ratio_checkbox.isChecked():
-            sender = self.sender()
             if sender == self.width_spinbox:
                 # 宽度改变，调整高度
                 new_height = int(self.width_spinbox.value() / self.aspect_ratio)
-                new_height = max(100, min(8000, new_height))
+                new_height = max(100, min(self.original_image_size[1], new_height))
                 self.height_spinbox.blockSignals(True)
                 self.height_spinbox.setValue(new_height)
                 self.height_spinbox.blockSignals(False)
             elif sender == self.height_spinbox:
                 # 高度改变，调整宽度
                 new_width = int(self.height_spinbox.value() * self.aspect_ratio)
-                new_width = max(100, min(8000, new_width))
+                new_width = max(100, min(self.original_image_size[0], new_width))
                 self.width_spinbox.blockSignals(True)
                 self.width_spinbox.setValue(new_width)
                 self.width_spinbox.blockSignals(False)
@@ -169,9 +254,35 @@ class ImageCropDialog(QDialog):
         
     def set_quick_size(self, size):
         """设置快速尺寸"""
-        self.width_spinbox.setValue(size)
-        self.height_spinbox.setValue(size)
-        self.aspect_ratio = 1.0
+        # 临时禁用保持纵横比，避免在快速设置时受到纵横比限制
+        original_keep_aspect = self.keep_aspect_ratio_checkbox.isChecked()
+        self.keep_aspect_ratio_checkbox.setChecked(False)
+        
+        # 如果是特殊的最大尺寸标识，使用图片的原始长和宽
+        if size == max(self.original_image_size):
+            actual_width = self.original_image_size[0]
+            actual_height = self.original_image_size[1]
+        else:
+            # 检查快速设置尺寸是否超过图片原始尺寸
+            actual_width = min(size, self.original_image_size[0])
+            actual_height = min(size, self.original_image_size[1])
+            
+            if actual_width != size or actual_height != size:
+                QMessageBox.information(
+                    self, 
+                    "尺寸调整", 
+                    f"快速设置尺寸 {size}x{size} 超过图片原始尺寸，已调整为 {actual_width}x{actual_height}"
+                )
+        
+        # 设置宽度和高度
+        self.width_spinbox.setValue(actual_width)
+        self.height_spinbox.setValue(actual_height)
+        
+        # 恢复原来的纵横比设置
+        self.keep_aspect_ratio_checkbox.setChecked(original_keep_aspect)
+        
+        # 更新纵横比
+        self.aspect_ratio = actual_width / actual_height
     
     def accept_crop(self):
         """确认裁剪"""
@@ -203,13 +314,60 @@ class ImageCropView(QGraphicsView):
         # 鼠标操作相关
         self.start_pos = None
         self.is_dragging = False
+        self.is_panning = False  # 添加拖拽标识
+        self.last_pan_point = None
         
         # 设置视图属性
         self.setDragMode(QGraphicsView.NoDrag)
         self.setRenderHint(QPainter.Antialiasing)
         
+        # 启用滚轮缩放
+        self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
+        
+        # 设置缩放限制
+        self.min_scale = 0.1
+        self.max_scale = 5.0
+        
         # 适应图像大小
         self.fitInView(self.image_item, Qt.KeepAspectRatio)
+    
+    def wheelEvent(self, event):
+        """处理滚轮缩放事件"""
+        # 获取当前缩放因子
+        current_scale = self.transform().m11()
+        
+        # 计算缩放因子
+        if event.angleDelta().y() > 0:
+            scale_factor = 1.25  # 放大
+        else:
+            scale_factor = 0.8   # 缩小
+        
+        # 检查缩放限制
+        new_scale = current_scale * scale_factor
+        if new_scale < self.min_scale or new_scale > self.max_scale:
+            return
+        
+        # 应用缩放
+        self.scale(scale_factor, scale_factor)
+    
+    def keyPressEvent(self, event):
+        """处理键盘事件"""
+        if event.key() == Qt.Key_Space:
+            # 空格键恢复适应窗口
+            self.fitInView(self.image_item, Qt.KeepAspectRatio)
+        elif event.key() == Qt.Key_Plus or event.key() == Qt.Key_Equal:
+            # +键放大
+            current_scale = self.transform().m11()
+            if current_scale < self.max_scale:
+                self.scale(1.25, 1.25)
+        elif event.key() == Qt.Key_Minus:
+            # -键缩小
+            current_scale = self.transform().m11()
+            if current_scale > self.min_scale:
+                self.scale(0.8, 0.8)
+        else:
+            super().keyPressEvent(event)
     
     def set_crop_size(self, width, height):
         """设置裁剪尺寸"""
@@ -255,18 +413,36 @@ class ImageCropView(QGraphicsView):
             
             # 检查点击是否在图像内
             if self.image_item.contains(self.image_item.mapFromScene(scene_pos)):
-                self.start_pos = scene_pos
-                self.is_dragging = True
-                
-                # 移除之前的裁剪矩形
-                if self.crop_rect_item:
-                    self.scene.removeItem(self.crop_rect_item)
-                    self.crop_rect_item = None
+                if event.modifiers() == Qt.ControlModifier:
+                    # Ctrl+左键：开始拖拽视图
+                    self.is_panning = True
+                    self.last_pan_point = event.pos()
+                    self.setCursor(Qt.ClosedHandCursor)
+                else:
+                    # 普通左键：开始裁剪选择
+                    self.start_pos = scene_pos
+                    self.is_dragging = True
+                    
+                    # 移除之前的裁剪矩形
+                    if self.crop_rect_item:
+                        self.scene.removeItem(self.crop_rect_item)
+                        self.crop_rect_item = None
+        elif event.button() == Qt.RightButton:
+            # 右键：开始拖拽视图
+            self.is_panning = True
+            self.last_pan_point = event.pos()
+            self.setCursor(Qt.ClosedHandCursor)
         
         super().mousePressEvent(event)
     
     def mouseMoveEvent(self, event):
-        if self.is_dragging and self.start_pos:
+        if self.is_panning and self.last_pan_point:
+            # 拖拽视图
+            delta = event.pos() - self.last_pan_point
+            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
+            self.last_pan_point = event.pos()
+        elif self.is_dragging and self.start_pos:
             current_pos = self.mapToScene(event.pos())
             
             # 计算裁剪矩形（可变大小）
@@ -351,6 +527,13 @@ class ImageCropView(QGraphicsView):
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.is_dragging = False
+            if self.is_panning:
+                self.is_panning = False
+                self.setCursor(Qt.ArrowCursor)
+        elif event.button() == Qt.RightButton:
+            if self.is_panning:
+                self.is_panning = False
+                self.setCursor(Qt.ArrowCursor)
         super().mouseReleaseEvent(event)
     
     def get_crop_rect(self):
